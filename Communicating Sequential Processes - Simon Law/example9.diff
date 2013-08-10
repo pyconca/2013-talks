@@ -1,0 +1,25 @@
+--- example8.py	2013-08-09 00:27:38.994325870 -0400
++++ example9.py	2013-08-09 00:27:43.638395383 -0400
+@@ -16,12 +16,20 @@ def pipeline(target, i):
+ 
+     return o
+ 
++shared = multiprocessing.Manager()
++urlcache = shared.dict()
++
+ 
+ def urlget(i, o):
+     while True:
+         url = i.get()
+-        with urllib.request.urlopen(url) as response:
+-            content = response.read()
++
++        content = urlcache.get(url, None)
++        if content is None:
++            with urllib.request.urlopen(url) as response:
++                content = response.read()
++            urlcache[url] = content
++
+         o.put((url, content))
+         i.task_done()
+ 

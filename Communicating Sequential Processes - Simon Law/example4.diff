@@ -1,0 +1,38 @@
+--- example3.py	2013-08-09 00:27:00.513749763 -0400
++++ example4.py	2013-08-09 00:27:09.609885972 -0400
+@@ -2,6 +2,7 @@
+ 
+ import multiprocessing
+ import queue
++import re
+ import sys
+ import threading
+ import urllib.request
+@@ -9,9 +10,16 @@ import urllib.request
+ 
+ def urlget(i, o):
+     while True:
+-        url = i.get()
++        url, depth, maxdepth = i.get()
+         with urllib.request.urlopen(url) as response:
+-            o.put((url, response.read()))
++            content = response.read()
++        o.put((url, content))
++
++        if depth < maxdepth:
++            match = re.search(r'href="(/\w.*?)"', content.decode('utf-8'))
++            if match:
++                i.put((url + match.group(1), depth + 1, maxdepth))
++
+         i.task_done()
+ 
+ 
+@@ -22,7 +30,7 @@ def download(urls):
+         thread.start()
+ 
+     for url in urls:
+-        i.put(url)
++        i.put((url, 0, 1))
+ 
+     while i.unfinished_tasks > 0 or not o.empty():
+         yield o.get()

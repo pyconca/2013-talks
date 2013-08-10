@@ -1,0 +1,56 @@
+--- example5.py	2013-08-09 00:27:15.317971418 -0400
++++ example6.py	2013-08-09 00:27:21.550064693 -0400
+@@ -3,7 +3,6 @@
+ import hashlib
+ import multiprocessing
+ import queue
+-import re
+ import sys
+ import threading
+ import urllib.request
+@@ -18,19 +17,6 @@ def urlget(i, o):
+         i.task_done()
+ 
+ 
+-def download(urls):
+-    i, o = queue.Queue(), queue.Queue()
+-    for _ in range(multiprocessing.cpu_count()):
+-        thread = threading.Thread(target=urlget, args=(i, o), daemon=True)
+-        thread.start()
+-
+-    for url in urls:
+-        i.put(url)
+-
+-    while i.unfinished_tasks > 0 or not o.empty():
+-        yield o.get()
+-
+-
+ def hasher(i, o):
+     while True:
+         url, content = i.get()
+@@ -39,15 +25,20 @@ def hasher(i, o):
+ 
+ 
+ def hash_urls(urls):
+-    i, o = queue.Queue(), queue.Queue()
++    i, q = queue.Queue(), queue.Queue()
+     for _ in range(multiprocessing.cpu_count()):
+-        thread = threading.Thread(target=hasher, args=(i, o), daemon=True)
++        thread = threading.Thread(target=urlget, args=(i, q), daemon=True)
+         thread.start()
+ 
+-    for url, content in download(urls):
+-        i.put((url, content))
++    o = queue.Queue()
++    for _ in range(multiprocessing.cpu_count()):
++        thread = threading.Thread(target=hasher, args=(q, o), daemon=True)
++        thread.start()
++
++    for url in urls:
++        i.put(url)
+ 
+-    while i.unfinished_tasks > 0 or not o.empty():
++    while i.unfinished_tasks > 0 or q.unfinished_tasks > 0 or not o.empty():
+         yield o.get()
+ 
+ 
